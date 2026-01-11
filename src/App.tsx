@@ -1,0 +1,283 @@
+// src/App.tsx
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import AdminLogin from "./pages/AdminLogin";
+import Admin from "./pages/Admin";
+import DealerPortal from "./pages/DealerPortal";
+import AccessRestricted from "./pages/AccessRestricted";
+import InventoryStockPage from "@/pages/InventoryStockPage";
+import DealerDashboard from "./pages/DealerDashboard";
+import UnsignedEmptySlots from "./pages/UnsignedEmptySlots";
+import PasswordLogin from "./pages/PasswordLogin";
+import ProtectedMainRoute from "./components/ProtectedMainRoute";
+import ProtectedDealerRoute from "./components/ProtectedDealerRoute";
+import ProtectedDealerGroupRoute from "./components/ProtectedDealerGroupRoute";
+import FinanceReport from "./pages/FinanceReport";
+import ShowDealerships from "@/pages/ShowDealerships";
+import ShowManagement from "./pages/ShowManagement";
+import InternalSnowyPage from "./pages/InternalSnowy";
+
+// Dealer Group pages
+import DealerGroupPortal from "./pages/DealerGroupPortal";
+import DealerGroupDashboard from "./pages/DealerGroupDashboard";
+import DealerGroupInventoryStock from "./pages/DealerGroupInventoryStock";
+import DealerGroupUnsigned from "./pages/DealerGroupUnsigned";
+import DealerYard from "./pages/DealerYard";
+import DealerGroupYard from "./pages/DealerGroupYard";
+import AIFloatingAssistant from "./components/AIFloatingAssistant";
+import InventoryManagement from "./pages/InventoryManagement";
+import TierConfigEditor from "@/pages/TierConfigEditor";
+import SalesforceTest from "./pages/SalesforceTest";
+import OcrPage from "./pages/OcrPage";
+import FinanceChatPlayground from "./pages/FinanceChatPlayground";
+
+const queryClient = new QueryClient();
+
+const AppShell = () => {
+  const location = useLocation();
+  const showAssistant = !location.pathname.startsWith("/ocr") && !location.pathname.startsWith("/finance-ai");
+
+  return (
+    <>
+      <Routes>
+        {/* 根路径重定向到密码登录页 */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* 密码登录页 */}
+        <Route path="/login" element={<PasswordLogin />} />
+
+        {/* Standalone OCR playground (public) */}
+        <Route path="/ocr" element={<OcrPage />} />
+
+        {/* Standalone finance chat playground (public) */}
+        <Route path="/finance-ai" element={<FinanceChatPlayground />} />
+
+        {/* 主仪表板（需要密码验证） */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedMainRoute>
+              <Index />
+            </ProtectedMainRoute>
+          }
+        />
+
+        {/* Show dealership mapping page */}
+        <Route
+          path="/show-dealerships"
+          element={
+            <ProtectedMainRoute>
+              <ShowDealerships />
+            </ProtectedMainRoute>
+          }
+        />
+
+        <Route
+          path="/tier-config"
+          element={
+            <ProtectedMainRoute>
+              <TierConfigEditor />
+            </ProtectedMainRoute>
+          }
+        />
+
+        {/* 管理员相关路由 */}
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin" element={<Admin />} />
+
+        {/* 独立 Salesforce 测试页（不纳入正式导航） */}
+        <Route path="/salesforce-test" element={<SalesforceTest />} />
+
+        {/* Standalone internal snapshot page (no sidebar) */}
+        <Route path="/xxx/internal-snowy-2487" element={<InternalSnowyPage />} />
+
+        {/* 单个 Dealer 路由 - 使用 /dealer/ 前缀 */}
+        <Route
+          path="/dealer/:dealerSlug"
+          element={
+            <ProtectedDealerRoute>
+              <DealerPortal />
+            </ProtectedDealerRoute>
+          }
+        />
+        <Route
+          path="/dealer/:dealerSlug/dashboard"
+          element={
+            <ProtectedDealerRoute>
+              <DealerDashboard />
+            </ProtectedDealerRoute>
+          }
+        />
+        <Route
+          path="/dealer/:dealerSlug/inventorystock"
+          element={
+            <ProtectedDealerRoute>
+              <InventoryStockPage />
+            </ProtectedDealerRoute>
+          }
+        />
+        <Route
+          path="/dealer/:dealerSlug/unsigned"
+          element={
+            <ProtectedDealerRoute>
+              <UnsignedEmptySlots />
+            </ProtectedDealerRoute>
+          }
+        />
+        <Route
+          path="/dealer/:dealerSlug/yard"
+          element={
+            <ProtectedDealerRoute>
+              <DealerYard />
+            </ProtectedDealerRoute>
+          }
+        />
+
+        <Route
+          path="/dealer/:dealerSlug/inventory-management"
+          element={
+            <ProtectedDealerRoute>
+              <InventoryManagement />
+            </ProtectedDealerRoute>
+          }
+        />
+
+        <Route
+          path="/dealer/:dealerSlug/show-management"
+          element={
+            <ProtectedDealerRoute>
+              <ShowManagement />
+            </ProtectedDealerRoute>
+          }
+        />
+        <Route
+          path="/dealer/:dealerSlug/show-management/:section"
+          element={
+            <ProtectedDealerRoute>
+              <ShowManagement />
+            </ProtectedDealerRoute>
+          }
+        />
+
+        <Route
+          path="/dealer/:dealerSlug/finance-report"
+          element={
+            <ProtectedDealerRoute>
+              <FinanceReport />
+            </ProtectedDealerRoute>
+          }
+        />
+
+        {/* Dealer Group 路由 - 使用 /dealergroup/ 前缀 */}
+        {/* 不带选中dealer的路由（会自动重定向到第一个dealer） */}
+        <Route
+          path="/dealergroup/:dealerSlug/dashboard"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupDashboard />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/dealerorders"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupPortal />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/inventorystock"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupInventoryStock />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/unsigned"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupUnsigned />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/yard"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupYard />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+
+        {/* 带选中dealer的路由 */}
+        <Route
+          path="/dealergroup/:dealerSlug/:selectedDealerSlug/dashboard"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupDashboard />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/:selectedDealerSlug/dealerorders"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupPortal />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/:selectedDealerSlug/inventorystock"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupInventoryStock />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/:selectedDealerSlug/unsigned"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupUnsigned />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+        <Route
+          path="/dealergroup/:dealerSlug/:selectedDealerSlug/yard"
+          element={
+            <ProtectedDealerGroupRoute>
+              <DealerGroupYard />
+            </ProtectedDealerGroupRoute>
+          }
+        />
+
+        {/* 受限页 */}
+        <Route path="/access-restricted" element={<AccessRestricted />} />
+
+        {/* 兜底 404，放最后 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      {showAssistant && <AIFloatingAssistant />}
+    </>
+  );
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <BrowserRouter>
+        <AppShell />
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
