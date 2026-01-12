@@ -86,9 +86,6 @@ type HandoverRec = {
   createdAt?: string | null;
   dealerSlug?: string | null;
   dealerName?: string | null;
-  model?: string | null;
-  vinnumber?: string | null;
-  customer?: { firstName?: string | null; lastName?: string | null } | string | null;
 };
 
 const PRICE_ENABLED_DEALERS = new Set(["frankston", "geelong", "launceston", "st-james", "traralgon"]);
@@ -177,12 +174,6 @@ function fmtMonthLabel(d: Date): string {
 function fmtWeekLabel(d: Date): string {
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
-function fmtWeekLabelFull(d: Date): string {
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
-}
-function fmtWeekKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 function isSecondhandChassis(chassis?: string | null): boolean {
   if (!chassis) return false;
   const c = String(chassis).toUpperCase();
@@ -194,8 +185,6 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
   currency: "AUD",
 });
-
-const HANDOVER_CHART_START = new Date(2026, 0, 1);
 
 const REPORT_EMAIL_SERVICE = "service_d39k2lv";
 const REPORT_EMAIL_TEMPLATE = "template_jp0j1s4";
@@ -230,14 +219,6 @@ const extractVin = (source: any): string | null => {
   }
 
   return null;
-};
-
-const resolveCustomerName = (customer?: HandoverRec["customer"]): string => {
-  if (!customer) return "";
-  if (typeof customer === "string") return customer.trim();
-  const first = toStr(customer?.firstName).trim();
-  const last = toStr(customer?.lastName).trim();
-  return `${first} ${last}`.trim();
 };
 
 function parseWholesale(val: unknown): number | null {
@@ -430,8 +411,7 @@ export default function DealerYard() {
   const [podPreviewUrl, setPodPreviewUrl] = useState<string | null>(null);
   const [podStatus, setPodStatus] = useState<null | { type: "ok" | "err"; msg: string }>(null);
   const [uploadingPod, setUploadingPod] = useState(false);
-  const [activeTab, setActiveTab] = useState<"kpi" | "waiting" | "yard" | "handover">("waiting");
-  const [handoverChartRange, setHandoverChartRange] = useState<"monthly" | "weekly">("monthly");
+  const [activeTab, setActiveTab] = useState<"kpi" | "waiting" | "yard">("waiting");
 
   // On The Road date range (PGI list controls)
   const [rangeType, setRangeType] = useState<"7d" | "30d" | "90d" | "custom">("7d");
@@ -714,15 +694,7 @@ export default function DealerYard() {
       const hand: HandoverRec = rec || {};
       const handoverAt = hand?.handoverAt ?? hand?.createdAt ?? null;
       const dealerSlugFromRec = slugifyDealerName(hand?.dealerSlug || hand?.dealerName || "");
-      const customerName = resolveCustomerName(hand?.customer);
-      return {
-        chassis,
-        handoverAt,
-        dealerSlugFromRec,
-        model: hand?.model ?? null,
-        vinnumber: hand?.vinnumber ?? null,
-        customerName,
-      };
+      return { chassis, handoverAt, dealerSlugFromRec };
     });
   }, [handover]);
 
@@ -746,75 +718,6 @@ export default function DealerYard() {
       ).length,
     [handoverList, dealerSlug, kpiStartDate, kpiEndDate]
   );
-
-  const handoverHistory = useMemo(() => {
-    return handoverList
-      .filter((row) => dealerSlug === row.dealerSlugFromRec)
-      .map((row) => {
-        const handoverDate = row.handoverAt ? new Date(row.handoverAt) : null;
-        return { ...row, handoverDate };
-      })
-      .sort((a, b) => {
-        const aTime = a.handoverDate?.getTime() ?? 0;
-        const bTime = b.handoverDate?.getTime() ?? 0;
-        return bTime - aTime;
-      });
-  }, [handoverList, dealerSlug]);
-
-  const handoverChartData = useMemo(() => {
-    const now = new Date();
-    const start = new Date(HANDOVER_CHART_START);
-    start.setHours(0, 0, 0, 0);
-    const entries = handoverHistory.filter((row) => {
-      if (!row.handoverDate || isNaN(row.handoverDate.getTime())) return false;
-      return row.handoverDate >= start;
-    });
-
-    if (handoverChartRange === "weekly") {
-      const counts = new Map<string, number>();
-      entries.forEach((row) => {
-        const d = row.handoverDate!;
-        const weekStart = startOfWeekMonday(d);
-        const key = fmtWeekKey(weekStart);
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      });
-
-      let cursor = startOfWeekMonday(start);
-      if (cursor < start) cursor = addDays(cursor, 7);
-      const data: Array<{ key: string; label: string; count: number }> = [];
-      while (cursor <= now) {
-        const key = fmtWeekKey(cursor);
-        data.push({
-          key,
-          label: fmtWeekLabelFull(cursor),
-          count: counts.get(key) ?? 0,
-        });
-        cursor = addDays(cursor, 7);
-      }
-      return data;
-    }
-
-    const counts = new Map<string, number>();
-    entries.forEach((row) => {
-      const d = row.handoverDate!;
-      const key = fmtMonthKey(new Date(d.getFullYear(), d.getMonth(), 1));
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    });
-
-    const data: Array<{ key: string; label: string; count: number }> = [];
-    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    const last = new Date(now.getFullYear(), now.getMonth(), 1);
-    while (cursor <= last) {
-      const key = fmtMonthKey(cursor);
-      data.push({
-        key,
-        label: fmtMonthLabel(cursor),
-        count: counts.get(key) ?? 0,
-      });
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-    return data;
-  }, [handoverHistory, handoverChartRange]);
 
   const yardChassisSet = useMemo(() => new Set(yardList.map((row) => row.chassis.toUpperCase())), [yardList]);
   const handoverChassisSet = useMemo(() => new Set(handoverList.map((row) => row.chassis.toUpperCase())), [handoverList]);
@@ -1243,12 +1146,6 @@ export default function DealerYard() {
     if (isNaN(d.getTime())) return "-";
     return d.toLocaleDateString();
   };
-  const formatDateTime = (iso?: string | null) => {
-    if (!iso) return "-";
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "-";
-    return d.toLocaleString();
-  };
 
   const exportYardInventory = () => {
     if (yardListDisplay.length === 0) return;
@@ -1551,13 +1448,6 @@ export default function DealerYard() {
             onClick={() => setActiveTab("yard")}
           >
             Yard Inventory
-          </Button>
-          <Button
-            variant={activeTab === "handover" ? "default" : "outline"}
-            className={activeTab === "handover" ? "" : "!bg-transparent !hover:bg-transparent"}
-            onClick={() => setActiveTab("handover")}
-          >
-            Handover History
           </Button>
         </div>
 
@@ -2073,80 +1963,6 @@ export default function DealerYard() {
                                 <span className="text-xs uppercase tracking-wide text-slate-400">Unavailable</span>
                               )}
                             </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
-        )}
-
-        {activeTab === "handover" && (
-          <>
-            <Card className="border-slate-200 shadow-sm hover:shadow-md transition">
-              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <CardTitle className="text-sm">Handover Volume (from Jan 2026)</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={handoverChartRange === "weekly" ? "default" : "outline"}
-                    className={handoverChartRange === "weekly" ? "" : "!bg-transparent !hover:bg-transparent"}
-                    onClick={() => setHandoverChartRange("weekly")}
-                  >
-                    Weekly
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={handoverChartRange === "monthly" ? "default" : "outline"}
-                    className={handoverChartRange === "monthly" ? "" : "!bg-transparent !hover:bg-transparent"}
-                    onClick={() => setHandoverChartRange("monthly")}
-                  >
-                    Monthly
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={handoverChartData}>
-                    <XAxis dataKey="label" interval="preserveStartEnd" />
-                    <YAxis allowDecimals={false} />
-                    <ReTooltip />
-                    <Bar dataKey="count" fill="#7c3aed" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200 shadow-sm hover:shadow-md transition">
-              <CardHeader>
-                <CardTitle>Handover History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {handoverHistory.length === 0 ? (
-                  <div className="text-sm text-slate-500">No handover records yet.</div>
-                ) : (
-                  <div className="rounded-lg border overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="font-semibold">Chassis</TableHead>
-                          <TableHead className="font-semibold">VIN Number</TableHead>
-                          <TableHead className="font-semibold">Model</TableHead>
-                          <TableHead className="font-semibold">Customer</TableHead>
-                          <TableHead className="font-semibold">Handover Time</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {handoverHistory.map((row) => (
-                          <TableRow key={`${row.chassis}-${row.handoverAt || "unknown"}`}>
-                            <TableCell className="font-medium">{row.chassis}</TableCell>
-                            <TableCell>{row.vinnumber || "-"}</TableCell>
-                            <TableCell>{row.model || "-"}</TableCell>
-                            <TableCell>{row.customerName || "-"}</TableCell>
-                            <TableCell>{formatDateTime(row.handoverAt)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
